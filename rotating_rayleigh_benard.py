@@ -1,5 +1,4 @@
-"""A
-Dedalus script simulating 2D horizontally-periodic Rayleigh-Benard convection.
+"""ADedalus script simulating 2D horizontally-periodic Rayleigh-Benard convection.
 This script demonstrates solving a 2D Cartesian initial value problem. It can
 be ran serially or in parallel, and uses the built-in analysis framework to save
 data snapshots to HDF5 files. The `plot_snapshots.py` script can be used to
@@ -75,7 +74,7 @@ ex, ey, ez = coords.unit_vector_fields(dist)
 lift_basis = zbasis.derivative_basis(1)
 lift = lambda A: d3.Lift(A, lift_basis, -1)
 cross = lambda A,B: d3.cross(A,B)
-curl = lambda A: de.Curl(A)
+curl = lambda A: d3.Curl(A)
 grad_u = d3.grad(u) + ez*lift(tau_u1) # First-order reduction
 grad_b = d3.grad(b) + ez*lift(tau_b1) # First-order reduction
 
@@ -104,7 +103,7 @@ b['g'] *= z * (Lz - z) # Damp noise at walls
 b['g'] += Lz - z # Add linear background
 
 # Analysis
-outdir = 'rotating_RBC_Ra{:}_Ta{:}_Pr{:}_nx{:}_ny{:}_nz{:}'.format(Rayleigh, Taylor, Prandtl, Nx, Ny, Nz) + label
+outdir = 'rotating_RBC_Ra{:.2g}_Ta{:.2g}_Pr{:.2g}_nx{:}_ny{:}_nz{:}'.format(Rayleigh, Taylor, Prandtl, Nx, Ny, Nz) + label
 snapshots = solver.evaluator.add_file_handler(outdir+'/snapshots', sim_dt=10, max_writes=10)
 snapshots.add_task(b, name='buoyancy')
 snapshots.add_task(u@ex, name='u')
@@ -119,29 +118,29 @@ slices.add_task(b(z=0.5*Lz), name='b z=0.5')
 slices.add_task(b(z=0.8*Lz), name='b z=0.8')
 slices.add_task(b(z=0.9*Lz), name='b z=0.9')
 
-slices.add_task(u@ex(z=0.1*Lz), name='u z=0.1')
-slices.add_task(u@ex(z=0.2*Lz), name='u z=0.2')
-slices.add_task(u@ex(z=0.5*Lz), name='u z=0.5')
-slices.add_task(u@ex(z=0.8*Lz), name='u z=0.8')
-slices.add_task(u@ex(z=0.9*Lz), name='u z=0.9')
+slices.add_task(ex@u(z=0.1*Lz), name='u z=0.1')
+slices.add_task(ex@u(z=0.2*Lz), name='u z=0.2')
+slices.add_task(ex@u(z=0.5*Lz), name='u z=0.5')
+slices.add_task(ex@u(z=0.8*Lz), name='u z=0.8')
+slices.add_task(ex@u(z=0.9*Lz), name='u z=0.9')
 
-slices.add_task(u@ey(z=0.1*Lz), name='v z=0.1')
-slices.add_task(u@ey(z=0.2*Lz), name='v z=0.2')
-slices.add_task(u@ey(z=0.5*Lz), name='v z=0.5')
-slices.add_task(u@ey(z=0.8*Lz), name='v z=0.8')
-slices.add_task(u@ey(z=0.9*Lz), name='v z=0.9')
+slices.add_task(ey@u(z=0.1*Lz), name='v z=0.1')
+slices.add_task(ey@u(z=0.2*Lz), name='v z=0.2')
+slices.add_task(ey@u(z=0.5*Lz), name='v z=0.5')
+slices.add_task(ey@u(z=0.8*Lz), name='v z=0.8')
+slices.add_task(ey@u(z=0.9*Lz), name='v z=0.9')
 
-slices.add_task(u@ez(z=0.1*Lz), name='w z=0.1')
-slices.add_task(u@ez(z=0.2*Lz), name='w z=0.2')
-slices.add_task(u@ez(z=0.5*Lz), name='w z=0.5')
-slices.add_task(u@ez(z=0.8*Lz), name='w z=0.8')
-slices.add_task(u@ez(z=0.9*Lz), name='w z=0.9')
+slices.add_task(ez@u(z=0.1*Lz), name='w z=0.1')
+slices.add_task(ez@u(z=0.2*Lz), name='w z=0.2')
+slices.add_task(ez@u(z=0.5*Lz), name='w z=0.5')
+slices.add_task(ez@u(z=0.8*Lz), name='w z=0.8')
+slices.add_task(ez@u(z=0.9*Lz), name='w z=0.9')
 
-slices.add_task(curl(u)(z=0.1*Lz), name='w z=0.1')
-slices.add_task(curl(u)(z=0.2*Lz), name='w z=0.2')
-slices.add_task(curl(u)(z=0.5*Lz), name='w z=0.5')
-slices.add_task(curl(u)(z=0.8*Lz), name='w z=0.8')
-slices.add_task(curl(u)(z=0.9*Lz), name='w z=0.9')
+slices.add_task(ez@curl(u)(z=0.1*Lz), name='z vorticity z=0.1')
+slices.add_task(ez@curl(u)(z=0.2*Lz), name='z vorticity z=0.2')
+slices.add_task(ez@curl(u)(z=0.5*Lz), name='z vorticity z=0.5')
+slices.add_task(ez@curl(u)(z=0.8*Lz), name='z vorticity z=0.8')
+slices.add_task(ez@curl(u)(z=0.9*Lz), name='z vorticity z=0.9')
 
 traces = solver.evaluator.add_file_handler(outdir+'/traces', sim_dt=0.1, max_writes=None)
 #traces.add_task(
