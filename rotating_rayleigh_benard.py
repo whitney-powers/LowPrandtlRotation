@@ -1,4 +1,4 @@
-"""ADedalus script simulating 2D horizontally-periodic Rayleigh-Benard convection.
+"""A Dedalus script simulating 2D horizontally-periodic Rayleigh-Benard convection.
 This script demonstrates solving a 2D Cartesian initial value problem. It can
 be ran serially or in parallel, and uses the built-in analysis framework to save
 data snapshots to HDF5 files. The `plot_snapshots.py` script can be used to
@@ -142,8 +142,12 @@ slices.add_task(ez@curl(u)(z=0.5*Lz), name='z vorticity z=0.5')
 slices.add_task(ez@curl(u)(z=0.8*Lz), name='z vorticity z=0.8')
 slices.add_task(ez@curl(u)(z=0.9*Lz), name='z vorticity z=0.9')
 
+vol = Lx*Ly*Lz
+integ = lambda A: d3.Integrate(d3.Integrate(d3.Integrate(A, 'x'), 'y'), 'z')
+avg = lambda A: integ(A)/vol
+
 traces = solver.evaluator.add_file_handler(outdir+'/traces', sim_dt=0.1, max_writes=None)
-#traces.add_task(
+traces.add_task(avg(np.sqrt(u@u)/nu), name='Re')
 profiles = solver.evaluator.add_file_handler(outdir+'/profiles', sim_dt=0.25, max_writes=50)
 
 # CFL
@@ -170,5 +174,3 @@ except:
     raise
 finally:
     solver.log_stats()
-BB
-BB
