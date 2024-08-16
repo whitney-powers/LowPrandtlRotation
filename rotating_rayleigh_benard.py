@@ -22,6 +22,7 @@ To run and plot using e.g. 4 processes:
     $ mpiexec -n 4 python3 plot_snapshots.py snapshots/*.h5
 """
 
+import argparse
 import numpy as np
 import dedalus.public as d3
 from mpi4py import MPI
@@ -35,19 +36,40 @@ if log2 == int(log2):
     mesh = [int(2**np.ceil(log2/2)),int(2**np.floor(log2/2))]
 logger.info("running on processor mesh={}".format(mesh))
 
+
+#Parser
+parser = argparse.ArgumentParser(
+                    prog='rotating_rayleigh_benard.py',
+                    description='A script for 3D simulations of rotating Rayleigh Benard convection. Defaults to low-Prandtl numbers to study oscillitory onset',
+                    epilog='options below')
+parser.add_argument('-a', '--aspect', default=4, type=float, help='Aspect ratio of simulation Lx and Ly are the same, aspect = Lx/Lz = Ly/Lz')
+parser.add_argument('-R', '--Rayleigh', default=1e6, type=float, help='Rayleigh number')
+parser.add_argument('-P', '--Prandtl', default=0.1, type=float, help='Prandtl number')
+parser.add_argument('-T', '--Taylor', default=1e6, type=float, help='Taylor number')
+parser.add_argument('--nhoriz', default=128, type=int, help='horizontal resolution')
+parser.add_argument('--nz', default=32, type=int, help='vertical resolution')
+parser.add_argument('--stop_sim_time', type=float, help='stop time in freefall timescales')
+parser.add_argument('--stop_wall_time', type=float, help='wall stop time in hours')
+parser.add_argument('--label', type=str, help='output label')
+parser.add_argument('--restart', type=str, help='restarts simulation from specified file')
+args=parser.parse_args()
+
 # Parameters
-Lx, Ly, Lz = 4, 4, 1
-Nx, Ny, Nz = 128, 128, 32
-Rayleigh = 2e5
-Prandtl = 0.1
-Taylor = 1e6
+Lx, Ly, Lz = args.aspect, args.aspect, 1
+Nx, Ny, Nz = args.nhoriz, args.nhoriz, args.nz
+Rayleigh = args.Rayleigh
+Prandtl = args.Prandtl
+Taylor = args.Taylor
 dealias = 3/2
-stop_sim_time = 50
+stop_sim_time = args.stop_sim_time
+stop_wall_time = args.stop_wall_time
+restart = args.restart
+label= args.label
 timestepper = d3.RK222
 max_timestep = 0.125
 dtype = np.float64
 
-label=''
+
 
 # Bases
 coords = d3.CartesianCoordinates('x', 'y', 'z')
@@ -95,8 +117,10 @@ problem.add_equation("integ(p) = 0") # Pressure gauge
 
 # Solver
 solver = problem.build_solver(timestepper)
-solver.stop_sim_time = stop_sim_time
-
+if stop_sim_time is not None:
+    solver.stop_sim_time = stop_sim_time
+if stop_wall_time is not None:
+    solver.stop_wall_time = stop_wall_time*60*60
 # Initial conditions
 b.fill_random('g', seed=42, distribution='normal', scale=1e-3) # Random noise
 b['g'] *= z * (Lz - z) # Damp noise at walls
@@ -141,6 +165,10 @@ slices.add_task(ez@curl(u)(z=0.2*Lz), name='z vorticity z=0.2')
 slices.add_task(ez@curl(u)(z=0.5*Lz), name='z vorticity z=0.5')
 slices.add_task(ez@curl(u)(z=0.8*Lz), name='z vorticity z=0.8')
 slices.add_task(ez@curl(u)(z=0.9*Lz), name='z vorticity z=0.9')
+
+checkpoints = solver.evaluator.add_file_handler('checkpoints', wall_dt=4*60*60, max_writes=1)
+checkpoints.add_tasks(solver.state)
+
 
 vol = Lx*Ly*Lz
 integ = lambda A: d3.Integrate(d3.Integrate(d3.Integrate(A, 'x'), 'y'), 'z')
