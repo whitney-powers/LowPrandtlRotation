@@ -178,7 +178,7 @@ slices.add_task(ez@curl(u)(z=0.5*Lz), name='z vorticity z=0.5')
 slices.add_task(ez@curl(u)(z=0.8*Lz), name='z vorticity z=0.8')
 slices.add_task(ez@curl(u)(z=0.9*Lz), name='z vorticity z=0.9')
 
-checkpoints = solver.evaluator.add_file_handler('checkpoints', wall_dt=4*60*60, max_writes=1)
+checkpoints = solver.evaluator.add_file_handler(outdir+'checkpoints', wall_dt=4*60*60, max_writes=1)
 checkpoints.add_tasks(solver.state)
 
 
