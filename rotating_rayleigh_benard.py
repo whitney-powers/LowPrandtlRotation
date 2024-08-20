@@ -107,7 +107,7 @@ Omega = 1/2*Taylor**(1/2) * (Rayleigh / Prandtl)**(-1/2) * ez
 # First-order form: "lap(f)" becomes "div(grad_f)"
 
 trans = lambda A: d3.TransposeComponents(A)
-e = grad(u) + trans(grad(u))
+e = d3.grad(u) + trans(d3.grad(u))
 problem = d3.IVP([p, b, u, tau_p, tau_b1, tau_b2, tau_u1, tau_u2], namespace=locals())
 problem.add_equation("trace(grad_u) + tau_p = 0")
 problem.add_equation("dt(b) - kappa*div(grad_b) + lift(tau_b2 ) = - u@grad(b)")
@@ -137,7 +137,9 @@ b['g'] *= z * (Lz - z) # Damp noise at walls
 b['g'] += Lz - z # Add linear background
 
 # Analysis
-outdir = 'rotating_RBC_Ra{:.2g}_Ta{:.2g}_Pr{:.2g}_nx{:}_ny{:}_nz{:}'.format(Rayleigh, Taylor, Prandtl, Nx, Ny, Nz) + label
+outdir = 'rotating_RBC_Ra{:.2g}_Ta{:.2g}_Pr{:.2g}_nx{:}_ny{:}_nz{:}'.format(Rayleigh, Taylor, Prandtl, Nx, Ny, Nz)
+if label is not None:
+    outdir+='_'+label
 snapshots = solver.evaluator.add_file_handler(outdir+'/snapshots', sim_dt=10, max_writes=10)
 snapshots.add_task(b, name='buoyancy')
 snapshots.add_task(u@ex, name='u')
@@ -184,7 +186,7 @@ vol = Lx*Ly*Lz
 integ = lambda A: d3.Integrate(d3.Integrate(d3.Integrate(A, 'x'), 'y'), 'z')
 avg = lambda A: integ(A)/vol
 
-traces = solver.evaluator.add_file_handler(outdir+'/traces', sim_dt=0.1, max_writes=None)
+traces = solver.evaluator.add_file_handler(outdir+'/traces', sim_dt=0.05, max_writes=None)
 traces.add_task(avg(np.sqrt(u@u)/nu), name='Re')
 profiles = solver.evaluator.add_file_handler(outdir+'/profiles', sim_dt=0.25, max_writes=50)
 
