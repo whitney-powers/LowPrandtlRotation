@@ -52,6 +52,7 @@ parser.add_argument('--stop_sim_time', type=float, help='stop time in freefall t
 parser.add_argument('--stop_wall_time', type=float, help='wall stop time in hours')
 parser.add_argument('--label', type=str, help='output label')
 parser.add_argument('--restart', type=str, help='restarts simulation from specified file')
+parser.add_argument('--high_cadence', action='store_true', help='runs with high slices and traces output cadence for spectra. This also increases the max writes per slices file to 1000. Only use with restarts for spectral analysis')
 args=parser.parse_args()
 
 # Parameters
@@ -132,10 +133,18 @@ if stop_sim_time is not None:
 if stop_wall_time is not None:
     solver.stop_wall_time = stop_wall_time*60*60
 # Initial conditions
-b.fill_random('g', seed=42, distribution='normal', scale=1e-3) # Random noise
-b['g'] *= z * (Lz - z) # Damp noise at walls
-b['g'] += Lz - z # Add linear background
+if arg.restart is not None:
 
+    b.fill_random('g', seed=42, distribution='normal', scale=1e-3) # Random noise
+    b['g'] *= z * (Lz - z) # Damp noise at walls
+    b['g'] += Lz - z # Add linear background
+    file_handler_mode='overwrite'
+    initial_timestep=max_timestep
+else:
+    write, initial_timestep = solver.load_state(args.restart)
+    initial_timestep = 1e-4
+    file_handler_mode = 'append'
+    
 # Analysis
 outdir = 'rotating_RBC_Ra{:.2g}_Ta{:.2g}_Pr{:.2g}_nx{:}_ny{:}_nz{:}'.format(Rayleigh, Taylor, Prandtl, Nx, Ny, Nz)
 if label is not None:
@@ -147,7 +156,19 @@ snapshots.add_task(u@ey, name='v')
 snapshots.add_task(u@ez, name='w')
 #snapshots.add_task(-d3.div(d3.skew(u)), name='vorticity')
 
-slices = solver.evaluator.add_file_handler(outdir+'/slices', sim_dt=0.25, max_writes=50)
+if args.high_cadence:
+    # From Chandrashekar Table XI the oscillation frequency is approximatley 1.2 times Omega for our parameter values
+    # Lets require that the output cadence be 20 times faster?
+    
+    traces_dt = slices_dt = 1/(20*Omega)
+    slices_writes=1000
+else:
+    traces_dt=
+    slices_dt=0.25
+    slices_writes=50
+    
+
+slices = solver.evaluator.add_file_handler(outdir+'/slices', sim_dt=slices_dt, max_writes=slices_writes, mode=file_handler_mode)
 slices.add_task(b(z=0.1*Lz), name='b z=0.1')
 slices.add_task(b(z=0.2*Lz), name='b z=0.2')
 slices.add_task(b(z=0.5*Lz), name='b z=0.5')
@@ -178,7 +199,7 @@ slices.add_task(ez@curl(u)(z=0.5*Lz), name='z vorticity z=0.5')
 slices.add_task(ez@curl(u)(z=0.8*Lz), name='z vorticity z=0.8')
 slices.add_task(ez@curl(u)(z=0.9*Lz), name='z vorticity z=0.9')
 
-checkpoints = solver.evaluator.add_file_handler(outdir+'checkpoints', wall_dt=4*60*60, max_writes=1)
+checkpoints = solver.evaluator.add_file_handler(outdir+'/checkpoints', wall_dt=1*60*60, max_writes=1, mode=file_handler_mode)
 checkpoints.add_tasks(solver.state)
 
 
@@ -186,12 +207,12 @@ vol = Lx*Ly*Lz
 integ = lambda A: d3.Integrate(d3.Integrate(d3.Integrate(A, 'x'), 'y'), 'z')
 avg = lambda A: integ(A)/vol
 
-traces = solver.evaluator.add_file_handler(outdir+'/traces', sim_dt=0.05, max_writes=None)
+traces = solver.evaluator.add_file_handler(outdir+'/traces', sim_dt=traces_dt, max_writes=None, mode=file_handler_mode)
 traces.add_task(avg(np.sqrt(u@u)/nu), name='Re')
-profiles = solver.evaluator.add_file_handler(outdir+'/profiles', sim_dt=0.25, max_writes=50)
+profiles = solver.evaluator.add_file_handler(outdir+'/profiles', sim_dt=0.25, max_writes=50, mode=file_handler_mode)
 
 # CFL
-CFL = d3.CFL(solver, initial_dt=max_timestep, cadence=10, safety=0.5, threshold=0.05,
+CFL = d3.CFL(solver, initial_dt=initial_timestep, cadence=10, safety=0.5, threshold=0.05,
              max_change=1.5, min_change=0.5, max_dt=max_timestep)
 CFL.add_velocity(u)
 
